@@ -1,0 +1,181 @@
+---
+title: "Método de los k- vecinos más próximos (KNN)"
+author: 'Grupo: Far Away'
+date: "05 de Mayo de 2024"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Integrantes |
+------------- | -------------
+Burgos Flaqué, María Fernanda | fernandaburgosflaque@gmail.com
+Coronel, Yesica Sidanelia | yesicacoronel.cpn@gmail.com
+Francomano, Pablo Nicolás | pablo.francomano@gmail.com
+Maccari, Pablo Augusto | pablomaccari@hotmail.com
+Pipinich, Joaquin | joaquinpipinich@gmail.com
+
+## Kesimo Vecino Más Próximo (KNN)
+### Análisis de caso
+
+#### Introducción
+
+El método de los Kesimos vecinos mas cercanos es una técnica de agrupamiento mediante la cual los datos analizados son asignados a k grupos, siendo k el número de clusters o grupos. La asignación a cada cluster se ejecuta basándose en la distancia al centroide más cercano. Esta agrupación permite la clasificación de nuevos datos o casos, permitiendo llegar a conclusiones según el grupo al que sean asignados.
+
+El siguiente trabajo busca utilizar este método para poder predecir en que tipo de actividad industrial o comercial se ubica una empresa de la cual solo se conocen dos variables: riesgo y rentabilidad.
+
+#### Hipótesis
+
+Se puede estimar dentro de que 5 actividades se encuentra una empresa cualquiera (llamada A) conociendo su riesgo y su rentabilidad.
+
+#### Desarrollo del método KNN
+
+##### Paso 1. Carga de datos y primer análisis
+
+El primer paso para el análisis del caso mencionado consiste en la carga de un set de 254 datos de riesgo- rentabilidad, para empresas de Mendoza. 
+
+```{r}
+
+
+library(readr)
+datos <- read_delim("https://themys.sid.uncu.edu.ar/rpalma/R-cran/Frontera_Pareto.csv", 
+    ";", escape_double = FALSE, locale = locale(decimal_mark = ",", 
+        grouping_mark = "|"), trim_ws = TRUE)
+
+
+```
+Como muestra, se imprimen las primeras filas a continuación.
+
+```{r}
+head(datos)
+
+```
+
+Es buena práctica graficar los datos para poder detectar a simple vista potenciales patrones, tendencias, relaciones y estructuras de los datos. Al estar analizando dos variables continuas, un gráfico de dispersión muestra cómo están relacionadas las dos variables del análisis, colocando la variable Rentabilidad en el eje x y una segunda, Riesgo (%), en el eje y.
+
+```{r}
+my <- datos$Rentabilidad 
+mx <- datos$Riesgo
+
+plot(mx,my,type="p", main="Riesgo (%) - Rentabilidad en Mendoza",ylab="Riesgo (%)",xlab="Rentabilidad")
+```
+
+La grafica muestra una relación creciente entre ambas variables, a mayor riesgo parece haber mayor rentabilidad para la mayoría de los casos y viceversa. 
+
+##### Paso 2. Generación de clusters
+
+La generación de clusters comienza seleccionando el parámetro K, buscando que la cantidad de muestras que quedan en cada grupo sean aproximadamente las mismas. La elección del valor K para este método es crítica, en sus extremos un valor K de 1 asignaría un cluster a cada dato, lo que significa un error cero, pero un modelo no útil y sobre ajustado (overfitting).
+Para 5 clusters el modelo selecciona para cada dato los mejores resultados utilizando el la suma de las distancias entre los datos y el correspondiente centroide de cada cluster (WCSS).
+
+```{r}
+set.seed(123)
+library(cluster)
+fit <- kmeans(datos, 5)
+fit
+
+
+
+```
+
+##### Paso 3. Asignación de nombres para los clusters
+
+A continuación se le asigna un nombre a cada uno de los clusters. Para ello se utiliza la denominación “Group_N” donde N representa un número secuencial. Se podrían también asignar palabras o rubros que faciliten el análisis.
+
+
+```{r}
+set.seed(123)
+aggregate(datos,by=list(fit$cluster),FUN=mean)
+mi_cluster <- data.frame(datos, fit$cluster)
+
+```
+
+Se puede obtener a continuación la asignacion de cada dato de la problación a cada el cluster en función de riesgo y rentabilidad.
+
+```{r}
+mi_cluster
+```
+
+##### Paso 4. Analisis de componenetes prinicpales (PCA)
+
+
+```{r}
+clusplot(mi_cluster,mi_cluster$fit.cluster)
+```
+
+El análisis de componentes principales es técnica estadística de síntesis de la información, o reducción de la dimensión (número de variables). En el caso analizado se utiliza para entender cuan bien explican las dos variables seleccionadas el comportamiento de las empresas. Para este ejemplo, las variables riesgo y rentabilidad explican el 88.26%.
+Es interesante mencionar que si este valor fuera menor al 50% deberían agregarse mas variables a los datos iniciales y repetir los pasos ya mencionados.
+
+##### Paso 5.Grafica de asignaciones (clusters)
+
+Al graficar nuevamente los datos, pero esta vez diferenciando por color la asignación a cada cluster, se observa la misma relación entre las dos variables analizadas pero esta vez con división por actividad (clusters). 
+
+```{r}
+plot(mi_cluster$Riesgo , mi_cluster$Rentabilidad , col=mi_cluster$fit.cluster, main = "Localización de cada cluster",ylab="Riesgo (%)",xlab="Rentabilidad")
+```
+
+##### Paso 5. Entrenamiento KNN
+
+El entrenamiento de un modelo de vecino próximo puede ser una buena opción cuando la población es muy grande. Es como trabajar con una muestra de la población.
+Para el análisis de este caso se tiene conocimiento de a qué actividad pertenece cada una de las empresas que fueron encuestadas sobre riesgo percibido de sus actividad y rentabilidad.
+
+
+```{r}
+
+train <- mi_cluster
+cl  <- factor(mi_cluster$fit.cluster, levels = c("1", "2","3","4","5"),labels = c("Prost, Penalist, Casino","Bank, Cred_pers, Tel_Cel, Bebidas", "Manufactura, Metal_Mec, Servicios ,Seguros,Bodegas","MOA, Restaurant, Emprendimientos BT","Transporte, Pasajeros, Indumentaria, Perecederos"))
+ 
+             
+```
+
+```{r}
+summary(cl)
+```
+```{r}
+plot(cl, main="Casos en la muestra", las = 2)
+```
+
+
+#### Caso de estudio e interpretación de resultados
+
+Teniendo los datos de rentabilidad y riesgo de una empresa A, se busca conocer a que tipo de actividad pertenece, segun su asignación a un cluster. 
+
+* Rentabilidad 50.000 %
+* Riesgo 62,23%
+* 3 Vecinos más próximos
+```{r}
+mi_caso <- cbind (50,62.23,3 )
+mi_caso
+```
+
+A continuación se analiza a que cluster pertenecen los 20 vecinos más próximos.
+
+
+```{r}
+set.seed(123)
+library(class)
+knn(train, mi_caso, k=20, cl, prob=TRUE)
+```
+Con este resultado, se puede asegurar con un 70% de nivel de confianza que se trata de una empresa del siguiente grupo:
+
+* Manufactura
+* Matalmecánica
+* Servicios profesionales
+* Agente de seguros
+* Bodegas pequeñas
+
+#### Conclusiones
+
+El método de los k- vecinos mas próximos (KNN) es un método fácil de implementar, con pocos hiperparametros (valor k y métrica de distancia) y de fácil adaptación a nuevos datos. Para el tipo de análisis realizado en este trabajo es un método muy ventajoso, permitiendo obtener de manera rápida una buena estimación sobre el caso nuevo a analizar. Por otro lado, es un modelo muy propenso al sobre ajuste al ser tan relevante la elección del valor k.
+
+#### Bibliografia
+
+Vandeput, Nicolas. Data Science for Supply Chain Forecasting. Walter de Gruyter GmbH, 2021.
+
+Grus, Joel. Data Science from Scratch. O´Reilly Media, 2015.
+
+IBM, https://www.ibm.com/mx-es/topics/knn, (consultado el 5 de Mayo de 2024)
